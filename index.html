@@ -463,13 +463,12 @@ function isRealWorkUrl(u){
          /xiaohongshu\.com\/(explore|discovery\/item)\//.test(u)||/xhslink\.com\//.test(u);
 }
 let workLinks = load('wb_work_links',{});
-function openWorkSearch(i){
+function copyTitleSearch(i){
   const w=window._worksData[i];
-  const q=encodeURIComponent(w.title);
-  const url = w.platform==='抖音'
-    ? 'https://www.douyin.com/search/'+q
-    : 'https://www.xiaohongshu.com/search_result?keyword='+q;
-  window.open(url,'_blank','noopener');
+  if(!w)return;
+  navigator.clipboard.writeText(w.title)
+    .then(()=>toast('标题已复制！打开'+w.platform+'APP粘贴搜索，第一条即原作品'))
+    .catch(()=>toast('复制失败，请长按标题手动复制'));
 }
 function pasteWorkLink(i){
   const w=window._worksData[i];
@@ -495,10 +494,10 @@ function renderWorks(data){
     const has = isRealWorkUrl(u);
     const label = has
       ? (w.platform==='抖音'?'▶ 去抖音看真实视频（点开即看）':'▶ 去小红书看真实笔记（点开即看）')
-      : (w.platform==='抖音'?'🔍 去抖音搜这条作品':'🔍 去小红书搜这条笔记');
-    const jump = '<button class="btn pill sm" onclick="'+(has?'window.open(\''+u+'\')':'openWorkSearch('+i+')')+'">'+label+'</button>';
+      : '📋 复制标题去'+w.platform+'搜';
+    const jump = '<button class="btn pill sm" onclick="'+(has?'window.open(\''+u+'\')':'copyTitleSearch('+i+')')+'">'+label+'</button>';
     const paste = has ? '' : '<button class="btn link sm" onclick="pasteWorkLink('+i+')">＋我贴真实链接</button>';
-    const sub = has ? '' : '<span class="sub-hint">若暂无精确链接，点击将打开'+w.platform+'搜索结果页，第一条基本就是该作品</span>';
+    const sub = has ? '' : '<span class="sub-hint">暂无精确链接，点上方按钮复制标题 → 打开'+w.platform+'APP粘贴搜索，第一条基本就是该作品</span>';
     return ''+
     '<div class="card work-item">'+
       '<div class="work-head">'+
