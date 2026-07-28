@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>我的专属工作台</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4f6ef7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="工作台">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#ffffff; --line:#eceef3;
+    --text:#22283a; --sub:#8a90a3; --accent:#4f6ef7; --accent-soft:#eef1fe;
+    --green:#2fbf71; --red:#e5484d; --orange:#ff8b3d;
+    --nav-active:#2fbf71; --nav-active-bg:#e8f8ef;
+    --radius:16px; --shadow:0 2px 8px rgba(30,40,80,.06);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;}
+  body{background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+
+  /* ===== 手机顶部栏 ===== */
+  .mobile-header{display:none;}
+
+  /* ===== 侧边栏 ===== */
+  .sidebar{width:260px;position:fixed;top:0;bottom:0;left:0;z-index:60;}
+  .sidebar-mask{display:none;}
+  .sidebar-inner{height:100%;background:var(--card);border-right:1px solid var(--line);
+    padding:22px 16px;display:flex;flex-direction:column;box-shadow:var(--shadow);}
+  .user-card{display:flex;align-items:center;gap:12px;padding:10px 8px 18px;border-bottom:1px solid var(--line);margin-bottom:12px;}
+  .avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#4f6ef7,#6a8cff);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;}
+  .user-info{line-height:1.35;}
+  .user-name{font-size:16px;font-weight:700;}
+  .user-sub{font-size:12px;color:var(--sub);}
+  .nav-list{display:flex;flex-direction:column;gap:8px;flex:1;}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;
+    cursor:pointer;color:var(--sub);font-size:14.5px;transition:.15s;user-select:none;}
+  .nav-item:hover{background:#f6f7fb;color:var(--text);}
+  .nav-item.active{background:var(--nav-active-bg);color:var(--nav-active);font-weight:600;}
+  .nav-item .ico{width:22px;text-align:center;font-size:18px;}
+  .sidebar-foot{margin-top:auto;font-size:11px;color:#c2c6d2;padding:14px 8px 4px;line-height:1.6;}
+
+  /* ===== 主区 ===== */
+  .main{margin-left:260px;flex:1;padding:28px 34px;max-width:1080px;}
+  .page{display:none;animation:fade .25s ease;}
+  .page.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  h1.pt{font-size:21px;margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+  .psub{color:var(--sub);font-size:13px;margin-bottom:22px;}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    border:1px solid var(--line);padding:20px;}
+  .btn{border:none;border-radius:9px;padding:9px 16px;font-size:13px;cursor:pointer;
+    background:var(--accent);color:#fff;transition:.15s;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:var(--accent-soft);color:var(--accent);}
+  .btn.sm{padding:6px 12px;font-size:12px;}
+  input[type=text],input[type=number]{border:1px solid var(--line);border-radius:9px;
+    padding:9px 12px;font-size:13px;outline:none;background:#fff;transition:.15s;}
+  input:focus{border-color:var(--accent);}
+  .tag{display:inline-block;font-size:11px;padding:3px 9px;border-radius:20px;font-weight:500;}
+  .tag.dy{background:#fff0f0;color:#e5484d;}
+  .tag.xhs{background:#ffece9;color:#ff4d3a;}
+  .tag.video{background:#eef7ff;color:#2b7fd4;}
+  .tag.pic{background:#f0fbf4;color:#2fa564;}
+
+  /* ===== 每日计划 ===== */
+  .progress-bar-wrap{background:var(--accent-soft);height:10px;border-radius:6px;overflow:hidden;flex:1;}
+  .progress-bar{height:100%;background:var(--accent);border-radius:6px;transition:.3s;}
+  .todo-item{display:flex;align-items:center;gap:12px;padding:12px 6px;border-bottom:1px dashed var(--line);}
+  .todo-item:last-child{border-bottom:none;}
+  .todo-check{width:20px;height:20px;border-radius:6px;border:2px solid #d4d8e3;cursor:pointer;
+    flex-shrink:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;transition:.15s;}
+  .todo-check.done{background:var(--green);border-color:var(--green);}
+  .todo-name{flex:1;border:none;background:transparent;font-size:14px;outline:none;color:var(--text);padding:4px;}
+  .todo-name::placeholder{color:#c6cad6;}
+  .todo-item.done .todo-name{text-decoration:line-through;color:var(--sub);}
+  .todo-del{color:#d4d8e3;cursor:pointer;font-size:16px;padding:2px 6px;border-radius:6px;transition:.15s;flex-shrink:0;}
+  .todo-del:hover{color:var(--red);background:#fdf0f0;}
+
+  /* ===== 二创页 ===== */
+  .work-item{margin-bottom:18px;}
+  .work-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;}
+  .work-head .title{font-size:15px;font-weight:600;flex:1;min-width:200px;}
+  .heat{font-size:12px;color:var(--orange);font-weight:600;}
+  .dual{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:900px){.dual{grid-template-columns:1fr;}}
+  .mini-card{background:#fafbfe;border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .mini-card h4{font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .mini-card p{font-size:12.5px;color:#555c72;line-height:1.8;white-space:pre-wrap;}
+
+  /* ===== 文案页 ===== */
+  .copy-body{font-size:13px;line-height:1.9;color:#454c62;white-space:pre-wrap;background:#fafbfe;
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0;}
+
+  /* ===== 血压页 ===== */
+  .bp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0;}
+  @media(max-width:700px){.bp-grid{grid-template-columns:1fr;}}
+  .bp-cell{text-align:center;padding:22px 10px;border-radius:12px;border:1px solid var(--line);background:#fafbfe;}
+  .bp-cell label{font-size:13px;color:var(--sub);display:block;margin-bottom:10px;}
+  .bp-cell input{width:110px;text-align:center;font-size:22px;font-weight:700;border:none;
+    border-bottom:2px solid var(--line);border-radius:0;background:transparent;padding:4px;}
+  .bp-cell input:focus{border-bottom-color:var(--accent);}
+  .bp-cell .unit{font-size:11px;color:#b6bac8;margin-top:8px;display:block;}
+  .hist-icon{cursor:pointer;font-size:18px;opacity:.45;transition:.15s;user-select:none;}
+  .hist-icon:hover{opacity:1;}
+  table.hist{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
+  table.hist th{text-align:left;color:var(--sub);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px;}
+  table.hist td{padding:9px 10px;border-bottom:1px dashed var(--line);}
+  .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2c3247;color:#fff;
+    padding:10px 22px;border-radius:24px;font-size:13px;opacity:0;pointer-events:none;transition:.3s;z-index:99;}
+  .toast.show{opacity:1;}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:36px 0;}
+
+  /* ===== 手机端：左侧抽屉导航 ===== */
+  @media(max-width:768px){
+    body{display:block;font-size:16px;}
+
+    /* 顶部栏 */
+    .mobile-header{display:flex;align-items:center;justify-content:space-between;
+      position:fixed;top:0;left:0;right:0;height:56px;background:var(--card);border-bottom:1px solid var(--line);
+      padding:0 16px;z-index:55;box-shadow:var(--shadow);}
+    .mobile-header .menu-btn{width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+      font-size:22px;color:var(--text);border-radius:10px;cursor:pointer;}
+    .mobile-header .menu-btn:active{background:#f2f3f7;}
+    .mobile-header .brand{font-size:17px;font-weight:700;}
+    .mobile-header .placeholder{width:36px;}
+
+    /* 抽屉 */
+    .sidebar{width:0;}
+    .sidebar.open{width:100%;}
+    .sidebar-mask{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:.25s;display:block;}
+    .sidebar.open .sidebar-mask{opacity:1;pointer-events:auto;}
+    .sidebar-inner{position:fixed;top:0;bottom:0;left:0;width:78%;max-width:300px;transform:translateX(-100%);
+      transition:.28s cubic-bezier(.2,.8,.2,1);border-right:none;}
+    .sidebar.open .sidebar-inner{transform:translateX(0);}
+    .user-card{padding:14px 8px 22px;}
+    .avatar{width:48px;height:48px;font-size:20px;}
+    .user-name{font-size:17px;}
+    .user-sub{font-size:13px;}
+    .nav-item{padding:14px 14px;font-size:16px;border-radius:14px;gap:14px;}
+    .nav-item .ico{font-size:20px;width:26px;}
+    .sidebar-foot{font-size:12px;padding:18px 8px 6px;}
+
+    .main{margin-left:0;padding:76px 14px 30px;max-width:none;}
+    .toast{bottom:30px;font-size:15px;}
+    h1.pt{font-size:22px;flex-wrap:wrap;}
+    .psub{font-size:14.5px;margin-bottom:16px;}
+    .card{padding:18px 16px;border-radius:16px;margin-bottom:14px;}
+    .btn{padding:13px 20px;font-size:16px;border-radius:12px;}
+    .btn.sm{padding:11px 16px;font-size:15px;}
+    input[type=text],input[type=number]{font-size:16px;padding:13px 14px;border-radius:12px;}
+    /* 每日计划 */
+    .todo-item{padding:15px 2px;gap:14px;}
+    .todo-check{width:26px;height:26px;border-radius:8px;font-size:17px;}
+    .todo-name{font-size:16.5px;}
+    .todo-del{font-size:20px;padding:4px 8px;}
+    #plan-progress{font-size:16px;}
+    /* 二创页 */
+    .dual{grid-template-columns:1fr;gap:12px;}
+    .work-head .title{font-size:17px;line-height:1.5;min-width:100%;order:9;}
+    .work-head{gap:8px;}
+    .work-head .btn{width:100%;order:10;}
+    .tag{font-size:13px;padding:5px 12px;}
+    .heat{font-size:14px;}
+    .mini-card{padding:16px;border-radius:14px;}
+    .mini-card h4{font-size:15.5px;margin-bottom:10px;}
+    .mini-card p{font-size:15px;line-height:1.85;color:#3d445c;}
+    /* 文案页 */
+    .copy-body{font-size:15.5px;line-height:1.9;padding:16px;color:#333a52;}
+    #copy-list h3{font-size:17px !important;}
+    /* 血压页 */
+    .bp-grid{grid-template-columns:1fr;gap:12px;}
+    .bp-cell{padding:20px 10px;display:flex;align-items:center;justify-content:space-between;text-align:left;padding:18px 20px;}
+    .bp-cell label{margin-bottom:0;font-size:16px;}
+    .bp-cell input{width:120px;font-size:28px;}
+    .bp-cell .unit{margin-top:0;font-size:13px;}
+    table.hist th{font-size:14px;padding:10px 8px;}
+    table.hist td{font-size:15.5px;padding:12px 8px;}
+    .hist-icon{font-size:24px;opacity:.7;}
+    .empty{font-size:15px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- 手机顶部栏 -->
+<header class="mobile-header">
+  <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+  <div class="brand">创作工作台</div>
+  <div class="placeholder"></div>
+</header>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-mask" onclick="toggleSidebar()"></div>
+  <div class="sidebar-inner">
+    <div class="user-card">
+      <div class="avatar">我</div>
+      <div class="user-info">
+        <div class="user-name">我的专属工作台</div>
+        <div class="user-sub">装修 / 硬装博主创作助手</div>
+      </div>
+    </div>
+    <nav class="nav-list">
+      <div class="nav-item active" data-page="plan" onclick="selectPage(this)"><span class="ico">📋</span>每日计划</div>
+      <div class="nav-item" data-page="works" onclick="selectPage(this)"><span class="ico">🔥</span>爆款热点视频/二创</div>
+      <div class="nav-item" data-page="copy" onclick="selectPage(this)"><span class="ico">✍️</span>爆款文案推荐</div>
+      <div class="nav-item" data-page="bp" onclick="selectPage(this)"><span class="ico">❤️</span>血压记录</div>
+    </nav>
+    <div class="sidebar-foot">☁️ <span id="sync-state">同步中…</span><br>爆款内容每日 5:00 自动更新</div>
+  </div>
+</aside>
+
+<main class="main">
+
+  <!-- ============ 每日计划 ============ -->
+  <section class="page active" id="page-plan">
+    <h1 class="pt">📋 每日计划 <span id="plan-date" style="font-size:13px;color:var(--sub);font-weight:400;"></span></h1>
+    <p class="psub">勾选完成任务，每天 0 点自动重置勾选状态，历史完成率自动留存</p>
+
+    <div class="card" style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:600;white-space:nowrap;">今日进度：<span id="plan-progress" style="color:var(--accent);">已完成 0/0</span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar" id="plan-bar" style="width:0%"></div></div>
+    </div>
+
+    <div class="card">
+      <div id="todo-list"></div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <input type="text" id="new-task" placeholder="输入新任务，回车或点添加…" style="flex:1;">
+        <button class="btn" onclick="addTask()">＋ 添加</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h4 style="font-size:13px;color:var(--sub);margin-bottom:8px;cursor:pointer;user-select:none;" onclick="togglePlanHist()">📈 往日完成记录 <span id="plan-hist-arrow">▸</span></h4>
+      <div id="plan-hist" style="display:none;"></div>
+    </div>
+  </section>
+
+  <!-- ============ 爆款热点视频/二创 ============ -->
+  <section class="page" id="page-works">
+    <h1 class="pt">🔥 爆款热点视频/二创</h1>
+    <p class="psub">抖音 / 小红书 · 装修博主 &amp; 硬装博主赛道 · 近24小时爆款（按热度排序）· 数据日期：<span id="works-date">—</span></p>
+    <div id="works-list"></div>
+  </section>
+
+  <!-- ============ 爆款文案推荐 ============ -->
+  <section class="page" id="page-copy">
+    <h1 class="pt">✍️ 爆款文案推荐</h1>
+    <p class="psub">每日精选 3 篇 · 已完成二创改写，可直接复制发布 · 数据日期：<span id="copy-date">—</span></p>
+    <div id="copy-list"></div>
+  </section>
+
+  <!-- ============ 血压记录 ============ -->
+  <section class="page" id="page-bp">
+    <h1 class="pt">❤️ <span id="bp-title">血压记录</span> <span class="hist-icon" id="bp-hist-btn" title="查看往日统计" onclick="toggleBpHist()">📊</span></h1>
+    <p class="psub">按北京时间自动定位到今天，输入后点保存，当日可随时修改</p>
+
+    <div class="card">
+      <div class="bp-grid">
+        <div class="bp-cell">
+          <label>高压（收缩压）</label>
+          <input type="number" id="bp-sys" placeholder="--">
+          <span class="unit">mmHg</span>
+        </div>
+        <div class="bp-cell">
+          <label>低压（舒张压）</label>
+          <input type="number" id="bp-dia" placeholder="--">
+          <span class="unit">mmHg</span>
+        </div>
+        <div class="bp-cell">
+          <label>心率</label>
+          <input type="number" id="bp-hr" placeholder="--">
+          <span class="unit">次/分</span>
+        </div>
+      </div>
+      <div style="text-align:center;">
+        <button class="btn" onclick="saveBp()">💾 保存今日数据</button>
+        <span id="bp-saved-tip" style="font-size:12px;color:var(--green);margin-left:12px;"></span>
+      </div>
+    </div>
+
+    <div class="card" id="bp-hist-panel" style="display:none;margin-top:16px;">
+      <h4 style="font-size:14px;margin-bottom:6px;">📊 往日统计</h4>
+      <div id="bp-hist-body"></div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="data/hot_works.js"></script>
+<script src="data/hot_copy.js"></script>
+<script>
+/* ================= 通用 ================= */
+function bjNow(){
+  return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Shanghai'}));
+}
+function bjDateStr(){
+  const d=bjNow();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),1800);
+}
+function load(k,def){try{const v=localStorage.getItem(k);return v?JSON.parse(v):def;}catch(e){return def;}}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v));}
+
+/* ================= 云同步 ================= */
+var SYNC_USER='https://jsonblob.com/api/jsonBlob/019fa2cb-bac3-7493-9bcd-2e0047d0a923';
+var SYNC_HOT='https://jsonblob.com/api/jsonBlob/019fa2cb-5b02-7169-b4dc-16f7280e98d9';
+var pushTimer=null;
+function setSyncState(s){var el=document.getElementById('sync-state');if(el)el.textContent=s;}
+function schedulePush(){clearTimeout(pushTimer);pushTimer=setTimeout(pushAll,1500);}
+async function pushAll(){
+  try{
+    const doc={plan:load('wb_plan',null),plan_hist:load('wb_plan_hist',[]),bp:load('wb_bp',{}),pushedAt:Date.now()};
+    const r=await fetch(SYNC_USER,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
+    if(!r.ok)throw 0;
+    setSyncState('已同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){setSyncState('离线，数据已存本机');}
+}
+async function pullAll(){
+  try{
+    const r=await fetch(SYNC_USER,{cache:'no-store'});
+    if(!r.ok)throw 0;
+    const doc=await r.json();
+    let pushBack=false;
+    const lbp=load('wb_bp',{}),rbp=doc.bp||{},mbp={...rbp};
+    for(const d in lbp){if(!mbp[d]||(lbp[d].ts||0)>(mbp[d].ts||0))mbp[d]=lbp[d];}
+    if(JSON.stringify(mbp)!==JSON.stringify(lbp)){save('wb_bp',mbp);loadBpToday();}
+    if(JSON.stringify(mbp)!==JSON.stringify(rbp))pushBack=true;
+    const lh=load('wb_plan_hist',[]),rh=doc.plan_hist||[],byDate={};
+    [...lh,...rh].forEach(h=>{if(!byDate[h.date])byDate[h.date]=h;});
+    const mh=Object.values(byDate).sort((a,b)=>b.date.localeCompare(a.date));
+    if(JSON.stringify(mh)!==JSON.stringify(lh))save('wb_plan_hist',mh);
+    if(JSON.stringify(mh)!==JSON.stringify(rh))pushBack=true;
+    const rp=doc.plan;
+    if(rp&&rp.date===today&&(rp.updatedAt||0)>(plan.updatedAt||0)){
+      plan=rp;save('wb_plan',plan);renderPlan();
+    }else if(!rp||rp.date!==today||(plan.updatedAt||0)>(rp.updatedAt||0)){
+      pushBack=true;
+    }
+    if(pushBack){schedulePush();}
+    else setSyncState('已同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
+  }catch(e){setSyncState('离线，数据已存本机');}
+}
+async function pullHot(){
+  try{
+    const r=await fetch(SYNC_HOT,{cache:'no-store'});
+    if(!r.ok)return;
+    const doc=await r.json();
+    if(doc&&doc.works&&doc.works.items)renderWorks(doc.works);
+    if(doc&&doc.copy&&doc.copy.items)renderCopy(doc.copy);
+  }catch(e){}
+}
+window.addEventListener('load',()=>{pullAll();pullHot();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){pullAll();pullHot();}});
+setInterval(pullAll,120000);
+
+/* ================= 导航 ================= */
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function selectPage(el){
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-'+el.dataset.page).classList.add('active');
+  if(window.innerWidth<=768)toggleSidebar();
+}
+
+/* ================= 每日计划 ================= */
+const PRESET=['','','','','',''];
+let plan=load('wb_plan',null);
+const today=bjDateStr();
+
+if(!plan){
+  plan={date:today,tasks:PRESET.map((t,i)=>({id:Date.now()+i,name:t,done:false,preset:true}))};
+}
+if(plan.date!==today){
+  const named=plan.tasks.filter(t=>t.name.trim());
+  if(named.length){
+    const hist=load('wb_plan_hist',[]);
+    hist.unshift({date:plan.date,done:named.filter(t=>t.done).length,total:named.length});
+    save('wb_plan_hist',hist.slice(0,60));
+  }
+  plan.date=today;
+  plan.tasks.forEach(t=>{t.done=false;if(t.preset)t.name='';});
+  plan.updatedAt=Date.now();
+}
+savePlan();
+
+function savePlan(){plan.updatedAt=Date.now();save('wb_plan',plan);renderPlan();schedulePush();}
+function renderPlan(){
+  const d=bjNow();
+  document.getElementById('plan-date').textContent=(d.getMonth()+1)+'月'+d.getDate()+'日';
+  const box=document.getElementById('todo-list');
+  box.innerHTML='';
+  plan.tasks.forEach(t=>{
+    const row=document.createElement('div');
+    row.className='todo-item'+(t.done?' done':'');
+    row.innerHTML=
+      '<div class="todo-check'+(t.done?' done':'')+'">'+(t.done?'✓':'')+'</div>'+
+      '<input class="todo-name" value="'+t.name.replace(/"/g,'&quot;')+'" placeholder="点击填写今日任务…">'+
+      '<span class="todo-del" title="删除">🗑</span>';
+    row.querySelector('.todo-check').onclick=()=>{t.done=!t.done;savePlan();};
+    row.querySelector('.todo-name').onchange=e=>{t.name=e.target.value;plan.updatedAt=Date.now();save('wb_plan',plan);updateProgress();schedulePush();};
+    row.querySelector('.todo-del').onclick=()=>{plan.tasks=plan.tasks.filter(x=>x.id!==t.id);savePlan();};
+    box.appendChild(row);
+  });
+  updateProgress();
+}
+function updateProgress(){
+  const named=plan.tasks.filter(t=>t.name.trim());
+  const done=named.filter(t=>t.done).length;
+  document.getElementById('plan-progress').textContent='已完成 '+done+'/'+named.length;
+  document.getElementById('plan-bar').style.width=(named.length?done/named.length*100:0)+'%';
+}
+function addTask(){
+  const inp=document.getElementById('new-task');
+  const v=inp.value.trim();
+  if(!v){toast('请输入任务名称');return;}
+  plan.tasks.push({id:Date.now(),name:v,done:false,preset:false});
+  inp.value='';savePlan();
+}
+document.getElementById('new-task').addEventListener('keydown',e=>{if(e.key==='Enter')addTask();});
+function togglePlanHist(){
+  const el=document.getElementById('plan-hist'),ar=document.getElementById('plan-hist-arrow');
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';ar.textContent=show?'▾':'▸';
+  if(show){
+    const hist=load('wb_plan_hist',[]);
+    el.innerHTML=hist.length
+      ?hist.map(h=>'<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px dashed var(--line);font-size:13px;"><span>'+h.date+'</span><span style="color:var(--accent);">完成 '+h.done+'/'+h.total+'</span></div>').join('')
+      :'<div class="empty">暂无历史记录，从明天开始自动积累</div>';
+  }
+}
+
+/* ================= 爆款作品二创 ================= */
+function isRealWorkUrl(u){
+  if(!u)return false;
+  return /douyin\.com\/(video|note)\//.test(u)||/v\.douyin\.com\//.test(u)||
+         /xiaohongshu\.com\/(explore|discovery\/item)\//.test(u)||/xhslink\.com\//.test(u);
+}
+function copyTitleSearch(i){
+  const w=window._worksData[i];
+  navigator.clipboard.writeText(w.title)
+    .then(()=>toast('标题已复制！打开'+w.platform+'粘贴搜索即可找到原作品'))
+    .catch(()=>toast('复制失败，请长按标题手动复制'));
+}
+function renderWorks(data){
+  data=data||{date:'',items:[]};
+  window._worksData=data.items||[];
+  document.getElementById('works-date').textContent=data.date||'暂无';
+  const box=document.getElementById('works-list');
+  if(!data.items||!data.items.length){box.innerHTML='<div class="card empty">暂无数据，明早 5:00 将自动抓取更新</div>';return;}
+  box.innerHTML=data.items.map((w,i)=>
+    '<div class="card work-item">'+
+      '<div class="work-head">'+
+        '<span class="tag '+(w.platform==='抖音'?'dy':'xhs')+'">'+w.platform+'</span>'+
+        '<span class="tag '+(w.type==='视频'?'video':'pic')+'">'+w.type+'</span>'+
+        '<span class="title">'+w.title+'</span>'+
+        '<span class="heat">🔥 '+w.heat+'</span>'+
+        (isRealWorkUrl(w.url)
+          ?'<button class="btn ghost sm" onclick="window.open(\''+w.url+'\')">▶ 查看原作品</button>'
+          :'<button class="btn ghost sm" onclick="copyTitleSearch('+i+')">📋 复制标题，去'+w.platform+'搜原作品</button>')+
+      '</div>'+
+      '<div class="dual">'+
+        '<div class="mini-card"><h4>🔍 爆火核心原因</h4><p>'+w.reason+'</p></div>'+
+        '<div class="mini-card"><h4>💡 可借鉴创作启发</h4><p><b>【怎么二创】</b>\n'+w.tips_recreate+'\n\n<b>【怎么发原创】</b>\n'+w.tips_original+'</p></div>'+
+      '</div>'+
+    '</div>').join('');
+}
+renderWorks(window.HOT_WORKS);
+
+/* ================= 爆款文案推荐 ================= */
+function renderCopy(data){
+  data=data||{date:'',items:[]};
+  document.getElementById('copy-date').textContent=data.date||'暂无';
+  const box=document.getElementById('copy-list');
+  if(!data.items||!data.items.length){box.innerHTML='<div class="card empty">暂无数据，明早 5:00 将自动抓取更新</div>';return;}
+  box.innerHTML=data.items.map((c,i)=>
+    '<div class="card" style="margin-bottom:16px;">'+
+      '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'+
+        '<span class="tag '+(c.platform==='抖音'?'dy':'xhs')+'">'+c.platform+'</span>'+
+        '<span style="font-size:12px;color:var(--sub);">灵感来源：'+c.source_title+'</span>'+
+      '</div>'+
+      '<h3 style="font-size:15px;margin:12px 0 2px;">'+c.rewritten_title+'</h3>'+
+      '<div class="copy-body" id="copy-text-'+i+'">'+c.rewritten_body+'</div>'+
+      '<button class="btn sm" onclick="copyText('+i+')">📋 一键复制（标题+文案）</button>'+
+    '</div>').join('');
+  window._copyData=data.items;
+}
+renderCopy(window.HOT_COPY);
+function copyText(i){
+  const c=window._copyData[i];
+  navigator.clipboard.writeText(c.rewritten_title+'\n\n'+c.rewritten_body)
+    .then(()=>toast('已复制，可直接粘贴发布 ✅'))
+    .catch(()=>toast('复制失败，请手动选择复制'));
+}
+
+/* ================= 血压记录 ================= */
+function renderBpTitle(){
+  const d=bjNow();
+  document.getElementById('bp-title').textContent=(d.getMonth()+1)+'月'+d.getDate()+'日 血压记录';
+}
+function loadBpToday(){
+  const rec=load('wb_bp',{});
+  const t=rec[bjDateStr()];
+  if(t){
+    document.getElementById('bp-sys').value=t.sys;
+    document.getElementById('bp-dia').value=t.dia;
+    document.getElementById('bp-hr').value=t.hr;
+    document.getElementById('bp-saved-tip').textContent='✓ 今日已记录（可修改后重新保存）';
+  }
+}
+function saveBp(){
+  const sys=document.getElementById('bp-sys').value,
+        dia=document.getElementById('bp-dia').value,
+        hr=document.getElementById('bp-hr').value;
+  if(!sys||!dia||!hr){toast('请填写完整三项数值');return;}
+  const rec=load('wb_bp',{});
+  rec[bjDateStr()]={sys:+sys,dia:+dia,hr:+hr,ts:Date.now()};
+  save('wb_bp',rec);
+  document.getElementById('bp-saved-tip').textContent='✓ 已保存 '+bjNow().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  toast('今日血压已保存 ❤️');
+  schedulePush();
+}
+function toggleBpHist(){
+  const p=document.getElementById('bp-hist-panel');
+  const show=p.style.display==='none';
+  p.style.display=show?'block':'none';
+  if(!show)return;
+  const rec=load('wb_bp',{});
+  const dates=Object.keys(rec).sort().reverse();
+  const body=document.getElementById('bp-hist-body');
+  if(!dates.length){body.innerHTML='<div class="empty">暂无往日记录</div>';return;}
+  body.innerHTML='<table class="hist"><tr><th>日期</th><th>高压</th><th>低压</th><th>心率</th></tr>'+
+    dates.map(d=>{
+      const r=rec[d];
+      const warn=r.sys>=140||r.dia>=90;
+      return '<tr><td>'+d+'</td><td style="'+(warn?'color:var(--red);font-weight:600;':'')+'">'+r.sys+'</td>'+
+             '<td style="'+(warn?'color:var(--red);font-weight:600;':'')+'">'+r.dia+'</td><td>'+r.hr+'</td></tr>';
+    }).join('')+'</table>'+
+    '<p style="font-size:11px;color:var(--sub);margin-top:8px;">红色数值表示高压≥140 或 低压≥90，建议关注</p>';
+}
+renderBpTitle();loadBpToday();
+</script>
+</body>
+</html>
