@@ -29,13 +29,13 @@
     --shadow:0 4px 20px rgba(124,58,237,.08);
   }
   *{margin:0;padding:0;box-sizing:border-box;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;-webkit-tap-highlight-color:transparent;}
-  body{background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+  body{background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
 
   /* ===== 手机顶部栏 ===== */
   .mobile-header{display:none;}
 
   /* ===== 侧边栏（收窄） ===== */
-  .sidebar{width:180px;position:fixed;top:0;bottom:0;left:0;z-index:60;}
+  .sidebar{width:160px;position:fixed;top:0;bottom:0;left:0;z-index:60;}
   .sidebar-mask{display:none;}
   .sidebar-inner{height:100%;background:var(--card);border-right:1px solid var(--line);
     padding:20px 12px;display:flex;flex-direction:column;box-shadow:var(--shadow);}
@@ -55,7 +55,7 @@
   .sidebar-foot{margin-top:auto;font-size:10px;color:#b4b0c7;padding:12px 8px 4px;line-height:1.6;}
 
   /* ===== 主区 ===== */
-  .main{margin-left:180px;flex:1;padding:24px 28px;max-width:1100px;}
+  .main{margin-left:160px;padding:22px 26px;max-width:none;overflow-x:hidden;}
   .page{display:none;animation:fade .25s ease;}
   .page.active{display:block;}
   @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
@@ -155,7 +155,7 @@
 
   /* ===== 手机端：左侧固定导航 + 右侧滚动内容 ===== */
   @media(max-width:768px){
-    body{display:flex;font-size:15px;}
+    body{display:block;font-size:15px;}
 
     .mobile-header{display:none;}
 
