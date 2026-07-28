@@ -140,30 +140,30 @@
   .toast.show{opacity:1;}
   .empty{color:var(--sub);font-size:13px;text-align:center;padding:36px 0;}
 
-  /* ===== 手机端：左侧固定导航 + 右侧滚动内容 ===== */
+  /* ===== 手机端：顶部横向导航 + 下方滚动内容 ===== */
   @media(max-width:768px){
-    body{display:flex;font-size:17px;}
+    body{display:block;font-size:17px;}
 
-    /* 隐藏顶部汉堡栏，导航常驻左侧 */
+    /* 隐藏汉堡栏，导航改为顶部横排 */
     .mobile-header{display:none;}
 
-    /* 左侧导航常驻（更窄，图标为主） */
-    .sidebar{width:64px;position:fixed;top:0;bottom:0;left:0;z-index:60;}
+    /* 顶部固定导航栏 */
+    .sidebar{width:100%;height:62px;top:0;bottom:auto;left:0;right:0;position:fixed;z-index:60;}
     .sidebar-mask{display:none;}
-    .sidebar-inner{height:100%;background:#f9f6f2;border-right:1px solid var(--line);
-      padding:10px 4px;display:flex;flex-direction:column;box-shadow:var(--shadow);
-      position:static;transform:none;width:100%;}
-    .user-card{padding:4px 2px 8px;justify-content:center;}
-    .avatar{width:28px;height:28px;font-size:12px;}
-    .user-info{text-align:center;}
-    .user-name{font-size:10px;}
-    .user-sub{display:none;}
-    .nav-list{gap:8px;}
-    .nav-item{flex-direction:column;align-items:center;text-align:center;gap:4px;padding:10px 2px;font-size:10px;border-radius:10px;line-height:1.2;}
-    .nav-item .ico{font-size:22px;width:auto;text-align:center;}
-    .sidebar-foot{text-align:center;font-size:8px;padding:10px 0 4px;line-height:1.5;}
+    .sidebar-inner{height:62px;flex-direction:row;background:#f9f6f2;border-right:none;
+      border-bottom:1px solid var(--line);padding:0;box-shadow:var(--shadow);
+      position:static;transform:none;width:100%;align-items:center;}
+    .user-card{display:none;}
+    .nav-list{flex-direction:row;flex:1;gap:0;height:100%;align-items:stretch;}
+    .nav-item{flex-direction:column;align-items:center;justify-content:center;flex:1;
+      font-size:10.5px;border-radius:0;line-height:1.15;gap:3px;padding:4px 2px;
+      border-right:1px solid var(--line);white-space:normal;}
+    .nav-item:last-child{border-right:none;}
+    .nav-item .ico{font-size:19px;width:auto;text-align:center;}
+    .nav-item.active{background:var(--nav-active-bg);}
+    .sidebar-foot{display:none;}
 
-    .main{margin-left:64px;padding:14px 12px 30px;max-width:none;}
+    .main{margin-left:0;padding:74px 12px 30px;max-width:none;}
     .toast{bottom:30px;font-size:15px;}
     h1.pt{font-size:24px;flex-wrap:wrap;margin-bottom:6px;}
     .psub{font-size:14px;margin-bottom:14px;}
