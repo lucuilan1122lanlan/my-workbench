@@ -119,6 +119,22 @@
   table.hist{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px;}
   table.hist th{text-align:left;color:var(--sub);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);font-size:12px;}
   table.hist td{padding:9px 10px;border-bottom:1px dashed var(--line);}
+  /* 血压：4时段 / 汇总 */
+  .bp-slot{margin-bottom:14px;}
+  .slot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .slot-name{font-size:16px;font-weight:700;}
+  .slot-saved{font-size:12px;color:var(--green);}
+  .bp-warn{font-size:12px;color:var(--red);margin-top:8px;}
+  .bp-month-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px;}
+  .bp-mcard{text-align:center;padding:14px 8px;border-radius:12px;border:1px solid var(--line);background:#fafbfe;}
+  .bp-mcard.warn{border-color:#ffd0d0;background:#fff6f6;}
+  .mc-name{font-size:13px;color:var(--sub);margin-bottom:6px;}
+  .mc-avg{font-size:20px;font-weight:800;color:var(--accent);}
+  .mc-sub{font-size:11px;color:#9aa0b4;margin-top:4px;}
+  .mc-none{font-size:13px;color:#b6bac8;}
+  .bp-detail-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .bp-sum th,.bp-sum td{white-space:nowrap;}
+  @media(max-width:700px){.bp-month-cards{grid-template-columns:repeat(2,1fr);}}
   .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#2c3247;color:#fff;
     padding:10px 22px;border-radius:24px;font-size:13px;opacity:0;pointer-events:none;transition:.3s;z-index:99;}
   .toast.show{opacity:1;}
@@ -265,36 +281,23 @@
 
   <!-- ============ 血压记录 ============ -->
   <section class="page" id="page-bp">
-    <h1 class="pt">❤️ <span id="bp-title">血压记录</span> <span class="hist-icon" id="bp-hist-btn" title="查看往日统计" onclick="toggleBpHist()">📊</span></h1>
-    <p class="psub">按北京时间自动定位到今天，输入后点保存，当日可随时修改</p>
+    <h1 class="pt">❤️ <span id="bp-title">血压记录</span> <span class="hist-icon" id="bp-hist-btn" title="查看月汇总" onclick="toggleBpMonth()">📊</span></h1>
+    <p class="psub">每天 4 个时段测量，数据自动保存并同步 · 点右上角 📊 看月汇总</p>
 
-    <div class="card">
-      <div class="bp-grid">
-        <div class="bp-cell">
-          <label>高压（收缩压）</label>
-          <input type="number" id="bp-sys" placeholder="--">
-          <span class="unit">mmHg</span>
-        </div>
-        <div class="bp-cell">
-          <label>低压（舒张压）</label>
-          <input type="number" id="bp-dia" placeholder="--">
-          <span class="unit">mmHg</span>
-        </div>
-        <div class="bp-cell">
-          <label>心率</label>
-          <input type="number" id="bp-hr" placeholder="--">
-          <span class="unit">次/分</span>
-        </div>
-      </div>
-      <div style="text-align:center;">
-        <button class="btn" onclick="saveBp()">💾 保存今日数据</button>
-        <span id="bp-saved-tip" style="font-size:12px;color:var(--green);margin-left:12px;"></span>
-      </div>
+    <div id="bp-slots"></div>
+
+    <div class="card" id="bp-today-summary" style="display:none;margin-top:14px;">
+      <div class="sec-title">📅 今日各时段汇总</div>
+      <div id="bp-today-body"></div>
     </div>
 
-    <div class="card" id="bp-hist-panel" style="display:none;margin-top:16px;">
-      <h4 style="font-size:14px;margin-bottom:6px;">📊 往日统计</h4>
-      <div id="bp-hist-body"></div>
+    <div class="card" id="bp-month-panel" style="display:none;margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div class="sec-title" style="margin:0;">📊 月汇总（按不同时段）</div>
+        <input type="month" id="bp-month" onchange="renderBpMonth()" style="font-size:14px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);">
+      </div>
+      <p style="font-size:12px;color:var(--sub);margin:6px 0 10px;">每个时段显示当月已测次数的平均血压；下方为每日明细</p>
+      <div id="bp-month-body"></div>
     </div>
   </section>
 
@@ -342,7 +345,12 @@ async function pullAll(){
     const doc=await r.json();
     let pushBack=false;
     const lbp=load('wb_bp',{}),rbp=doc.bp||{},mbp={...rbp};
-    for(const d in lbp){if(!mbp[d]||(lbp[d].ts||0)>(mbp[d].ts||0))mbp[d]=lbp[d];}
+    for(const d in lbp){
+      const lt=normalizeBpDay(lbp[d]||{}),rt=normalizeBpDay(mbp[d]||{});
+      const merged={...rt};
+      BP_SLOTS.forEach(s=>{if(lt[s]&&(!merged[s]||(lt[s].ts||0)>=(merged[s].ts||0)))merged[s]=lt[s];});
+      if(Object.keys(merged).length)mbp[d]=merged;
+    }
     if(JSON.stringify(mbp)!==JSON.stringify(lbp)){save('wb_bp',mbp);loadBpToday();}
     if(JSON.stringify(mbp)!==JSON.stringify(rbp))pushBack=true;
     const lh=load('wb_plan_hist',[]),rh=doc.plan_hist||[],byDate={};
@@ -576,49 +584,129 @@ function copyText(i){
 }
 
 /* ================= 血压记录 ================= */
+const BP_SLOTS=['晨起','上午','下午','睡前'];
+function normalizeBpDay(d){
+  if(!d||typeof d!=='object')return {};
+  if(d.sys!==undefined&&d.dia!==undefined)return {晨起:{sys:d.sys,dia:d.dia,hr:d.hr,ts:d.ts||0}};
+  return d;
+}
+function migrateBp(){
+  const rec=load('wb_bp',{});let changed=false;
+  for(const k in rec){const n=normalizeBpDay(rec[k]);if(JSON.stringify(n)!==JSON.stringify(rec[k])){rec[k]=n;changed=true;}}
+  if(changed)save('wb_bp',rec);
+  return rec;
+}
+function bjTime(ts){try{return new Date(ts).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}}
+function bpWarn(v){return v&&(v.sys>=140||v.dia>=90);}
 function renderBpTitle(){
   const d=bjNow();
   document.getElementById('bp-title').textContent=(d.getMonth()+1)+'月'+d.getDate()+'日 血压记录';
 }
 function loadBpToday(){
+  migrateBp();
   const rec=load('wb_bp',{});
-  const t=rec[bjDateStr()];
-  if(t){
-    document.getElementById('bp-sys').value=t.sys;
-    document.getElementById('bp-dia').value=t.dia;
-    document.getElementById('bp-hr').value=t.hr;
-    document.getElementById('bp-saved-tip').textContent='✓ 今日已记录（可修改后重新保存）';
-  }
+  const day=normalizeBpDay(rec[bjDateStr()]||{});
+  const box=document.getElementById('bp-slots');
+  box.innerHTML=BP_SLOTS.map(s=>{
+    const v=day[s]||{};
+    const saved=v.ts?('✓ '+bjTime(v.ts)):'';
+    const warn=bpWarn(v);
+    return '<div class="card bp-slot">'+
+      '<div class="slot-head"><span class="slot-name">'+s+'</span><span class="slot-saved" id="bp-saved-'+s+'">'+saved+'</span></div>'+
+      '<div class="bp-grid">'+
+        '<div class="bp-cell"><label>高压</label><input type="number" id="bp-'+s+'-sys" placeholder="--" value="'+(v.sys||'')+'"><span class="unit">mmHg</span></div>'+
+        '<div class="bp-cell"><label>低压</label><input type="number" id="bp-'+s+'-dia" placeholder="--" value="'+(v.dia||'')+'"><span class="unit">mmHg</span></div>'+
+        '<div class="bp-cell"><label>心率</label><input type="number" id="bp-'+s+'-hr" placeholder="--" value="'+(v.hr||'')+'"><span class="unit">次/分</span></div>'+
+      '</div>'+
+      (warn?'<div class="bp-warn">⚠️ 该时段高压≥140 或 低压≥90，建议关注</div>':'')+
+      '<div style="text-align:right;margin-top:10px;"><button class="btn sm" onclick="saveBp(\''+s+'\')">💾 保存'+s+'</button></div>'+
+    '</div>';
+  }).join('');
+  renderBpTodaySummary();
 }
-function saveBp(){
-  const sys=document.getElementById('bp-sys').value,
-        dia=document.getElementById('bp-dia').value,
-        hr=document.getElementById('bp-hr').value;
+function saveBp(slot){
+  const sys=document.getElementById('bp-'+slot+'-sys').value,
+        dia=document.getElementById('bp-'+slot+'-dia').value,
+        hr=document.getElementById('bp-'+slot+'-hr').value;
   if(!sys||!dia||!hr){toast('请填写完整三项数值');return;}
-  const rec=load('wb_bp',{});
-  rec[bjDateStr()]={sys:+sys,dia:+dia,hr:+hr,ts:Date.now()};
-  save('wb_bp',rec);
-  document.getElementById('bp-saved-tip').textContent='✓ 已保存 '+bjNow().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
-  toast('今日血压已保存 ❤️');
+  const rec=migrateBp();
+  const day=normalizeBpDay(rec[bjDateStr()]||{});
+  day[slot]={sys:+sys,dia:+dia,hr:+hr,ts:Date.now()};
+  rec[bjDateStr()]=day;save('wb_bp',rec);
+  document.getElementById('bp-saved-'+slot).textContent='✓ '+bjTime(Date.now());
+  toast(slot+' 血压已保存 ❤️');
+  renderBpTodaySummary();
   schedulePush();
 }
-function toggleBpHist(){
-  const p=document.getElementById('bp-hist-panel');
+function renderBpTodaySummary(){
+  const rec=load('wb_bp',{});
+  const day=normalizeBpDay(rec[bjDateStr()]||{});
+  const panel=document.getElementById('bp-today-summary');
+  const rows=BP_SLOTS.filter(s=>day[s]).map(s=>{
+    const v=day[s];if(!v)return '';
+    const warn=bpWarn(v);
+    const c=warn?' style="color:var(--red);font-weight:600;"':'';
+    return '<tr><td>'+s+'</td><td'+c+'>'+v.sys+'</td><td'+c+'>'+v.dia+'</td><td>'+v.hr+'</td><td style="color:var(--sub);font-size:12px;">'+bjTime(v.ts)+'</td></tr>';
+  }).join('');
+  if(!rows){panel.style.display='none';return;}
+  panel.style.display='block';
+  document.getElementById('bp-today-body').innerHTML='<table class="hist bp-sum"><tr><th>时段</th><th>高压</th><th>低压</th><th>心率</th><th>记录时间</th></tr>'+rows+'</table>';
+}
+function toggleBpMonth(){
+  const p=document.getElementById('bp-month-panel');
   const show=p.style.display==='none';
   p.style.display=show?'block':'none';
-  if(!show)return;
+  if(show){
+    const d=bjNow();
+    const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    document.getElementById('bp-month').value=m;
+    renderBpMonth();
+  }
+}
+function renderBpMonth(){
+  const m=document.getElementById('bp-month').value;
+  if(!m)return;
+  migrateBp();
   const rec=load('wb_bp',{});
-  const dates=Object.keys(rec).sort().reverse();
-  const body=document.getElementById('bp-hist-body');
-  if(!dates.length){body.innerHTML='<div class="empty">暂无往日记录</div>';return;}
-  body.innerHTML='<table class="hist"><tr><th>日期</th><th>高压</th><th>低压</th><th>心率</th></tr>'+
-    dates.map(d=>{
-      const r=rec[d];
-      const warn=r.sys>=140||r.dia>=90;
-      return '<tr><td>'+d+'</td><td style="'+(warn?'color:var(--red);font-weight:600;':'')+'">'+r.sys+'</td>'+
-             '<td style="'+(warn?'color:var(--red);font-weight:600;':'')+'">'+r.dia+'</td><td>'+r.hr+'</td></tr>';
-    }).join('')+'</table>'+
-    '<p style="font-size:11px;color:var(--sub);margin-top:8px;">红色数值表示高压≥140 或 低压≥90，建议关注</p>';
+  const agg={};BP_SLOTS.forEach(s=>agg[s]={n:0,sys:0,dia:0,hr:0});
+  const days=[];
+  for(const ds in rec){
+    if(ds.indexOf(m+'-')===0){
+      const day=normalizeBpDay(rec[ds]);
+      days.push(ds);
+      BP_SLOTS.forEach(s=>{const v=day[s];if(v){agg[s].n++;agg[s].sys+=v.sys;agg[s].dia+=v.dia;agg[s].hr+=v.hr;}});
+    }
+  }
+  days.sort();
+  const body=document.getElementById('bp-month-body');
+  if(!days.length){body.innerHTML='<div class="empty">该月暂无血压记录</div>';return;}
+  let h='<div class="bp-month-cards">';
+  h+=BP_SLOTS.map(s=>{
+    const a=agg[s];
+    if(!a.n)return '<div class="bp-mcard"><div class="mc-name">'+s+'</div><div class="mc-none">未测</div></div>';
+    const warn=a.sys/a.n>=140||a.dia/a.n>=90;
+    return '<div class="bp-mcard'+(warn?' warn':'')+'"><div class="mc-name">'+s+'</div>'+
+      '<div class="mc-avg">'+Math.round(a.sys/a.n)+'/'+Math.round(a.dia/a.n)+'</div>'+
+      '<div class="mc-sub">心率 '+Math.round(a.hr/a.n)+' · 测'+a.n+'次</div></div>';
+  }).join('');
+  h+='</div>';
+  h+='<div class="bp-detail-wrap"><table class="hist bp-sum"><tr><th>日期</th>';
+  BP_SLOTS.forEach(s=>h+='<th>'+s+'<br><span style="font-weight:400;font-size:10px;">高/低/率</span></th>');
+  h+='</tr>';
+  h+=days.map(ds=>{
+    const day=normalizeBpDay(rec[ds]);
+    let r='<tr><td>'+ds.slice(5)+'</td>';
+    BP_SLOTS.forEach(s=>{
+      const v=day[s];
+      if(!v){r+='<td style="color:#cdd;">—</td>';return;}
+      const warn=bpWarn(v);
+      r+='<td'+(warn?' style="color:var(--red);font-weight:600;"':'')+'>'+v.sys+'/'+v.dia+'/'+v.hr+'</td>';
+    });
+    return r+'</tr>';
+  }).join('');
+  h+='</table></div>';
+  h+='<p style="font-size:11px;color:var(--sub);margin-top:8px;">红色表示高压≥140 或 低压≥90，建议关注</p>';
+  body.innerHTML=h;
 }
 renderBpTitle();loadBpToday();
 </script>
