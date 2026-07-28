@@ -57,6 +57,7 @@
   .btn:hover{filter:brightness(1.08);}
   .btn.ghost{background:var(--accent-soft);color:var(--accent);}
   .btn.sm{padding:6px 12px;font-size:12px;}
+  .btn.link{background:transparent;color:var(--sub);text-decoration:underline;padding:6px 8px;font-size:12px;}
   input[type=text],input[type=number]{border:1px solid var(--line);border-radius:9px;
     padding:9px 12px;font-size:13px;outline:none;background:#fff;transition:.15s;}
   input:focus{border-color:var(--accent);}
@@ -323,7 +324,7 @@ function setSyncState(s){var el=document.getElementById('sync-state');if(el)el.t
 function schedulePush(){clearTimeout(pushTimer);pushTimer=setTimeout(pushAll,1500);}
 async function pushAll(){
   try{
-    const doc={plan:load('wb_plan',null),plan_hist:load('wb_plan_hist',[]),bp:load('wb_bp',{}),pushedAt:Date.now()};
+    const doc={plan:load('wb_plan',null),plan_hist:load('wb_plan_hist',[]),bp:load('wb_bp',{}),workLinks:load('wb_work_links',{}),pushedAt:Date.now()};
     const r=await fetch(SYNC_USER,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(doc)});
     if(!r.ok)throw 0;
     setSyncState('已同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
@@ -350,6 +351,10 @@ async function pullAll(){
     }else if(!rp||rp.date!==today||(plan.updatedAt||0)>(rp.updatedAt||0)){
       pushBack=true;
     }
+    // 用户手动贴的作品链接（跨设备合并）
+    const ll=load('wb_work_links',{}),rl=doc.workLinks||{},ml={...rl,...ll};
+    if(JSON.stringify(ml)!==JSON.stringify(ll)){save('wb_work_links',ml);workLinks=ml;if(window._lastWorks)renderWorks(window._lastWorks);}
+    if(Object.keys(rl).length&&JSON.stringify(rl)!==JSON.stringify(ll))pushBack=true;
     if(pushBack){schedulePush();}
     else setSyncState('已同步 '+new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){setSyncState('离线，数据已存本机');}
@@ -452,11 +457,22 @@ function isRealWorkUrl(u){
   return /douyin\.com\/(video|note)\//.test(u)||/v\.douyin\.com\//.test(u)||
          /xiaohongshu\.com\/(explore|discovery\/item)\//.test(u)||/xhslink\.com\//.test(u);
 }
-function copyTitleSearch(i){
+let workLinks = load('wb_work_links',{});
+function openWorkSearch(i){
   const w=window._worksData[i];
-  navigator.clipboard.writeText(w.title)
-    .then(()=>toast('标题已复制！打开'+w.platform+'粘贴搜索即可找到原作品'))
-    .catch(()=>toast('复制失败，请长按标题手动复制'));
+  const q=encodeURIComponent(w.title);
+  const url = w.platform==='抖音'
+    ? 'https://www.douyin.com/search/'+q
+    : 'https://www.xiaohongshu.com/search_result?keyword='+q;
+  window.open(url,'_blank','noopener');
+}
+function pasteWorkLink(i){
+  const w=window._worksData[i];
+  const url=prompt('粘贴这条作品在抖音/小红书的「真实分享链接」\n（支持 v.douyin.com/...、xhslink.com/...、douyin.com/video/...、xiaohongshu.com/explore/...）\n粘贴后这条作品即可一键直达，且手机电脑同步。');
+  if(!url)return;
+  if(!isRealWorkUrl(url)){toast('链接格式不对，请粘贴真实的作品分享链接');return;}
+  workLinks[w.title]=url.trim();save('wb_work_links',workLinks);schedulePush();renderWorks(window._lastWorks);
+  toast('已保存，这条现在可一键直达 ✅');
 }
 function renderWorks(data){
   data=data||{date:'',items:[],recreate:[]};
@@ -468,11 +484,14 @@ function renderWorks(data){
     return;
   }
   // —— 热门爆款作品（8条）——
-  let html='<div class="sec-title">📌 今日热门爆款（'+data.items.length+' 条 · 点击「▶ 原作品」跳转对应作品）</div>';
+  let html='<div class="sec-title">📌 今日热门爆款（'+data.items.length+' 条 · 有真实链接的点「▶ 原作品」直达；暂无链接的点「🔍 搜原作品」一键跳平台搜该标题）</div>';
   html+=data.items.map((w,i)=>{
-    const jump = isRealWorkUrl(w.url)
-      ? '<button class="btn ghost sm" onclick="window.open(\''+w.url+'\')">▶ 原作品 ↗</button>'
-      : '<button class="btn ghost sm" onclick="copyTitleSearch('+i+')">📋 复制标题去搜</button>';
+    const u = w.url || (workLinks[w.title]||'');
+    const has = isRealWorkUrl(u);
+    const jump = has
+      ? '<button class="btn ghost sm" onclick="window.open(\''+u+'\')">▶ 原作品 ↗</button>'
+      : '<button class="btn ghost sm" onclick="openWorkSearch('+i+')">🔍 搜原作品</button>';
+    const paste = has ? '' : '<button class="btn link sm" onclick="pasteWorkLink('+i+')">＋贴链接</button>';
     return ''+
     '<div class="card work-item">'+
       '<div class="work-head">'+
@@ -480,7 +499,7 @@ function renderWorks(data){
         '<span class="tag '+(w.type==='视频'?'video':'pic')+'">'+w.type+'</span>'+
         '<span class="title">'+w.title+'</span>'+
         '<span class="heat">🔥 '+w.heat+'</span>'+
-        jump+
+        jump+paste+
       '</div>'+
       '<div class="dual">'+
         '<div class="mini-card"><h4>🔍 爆火核心原因</h4><p>'+w.reason+'</p></div>'+
@@ -511,6 +530,7 @@ function renderWorks(data){
   }
   box.innerHTML=html;
   window._recreateData=data.recreate||[];
+  window._lastWorks=data;
 }
 function copyRecreate(i){
   const r=window._recreateData[i];
