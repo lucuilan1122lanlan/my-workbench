@@ -87,6 +87,10 @@
   .heat{font-size:12px;color:var(--orange);font-weight:600;}
   .dual{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   @media(max-width:900px){.dual{grid-template-columns:1fr;}}
+  .recreate-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:4px;}
+  @media(max-width:900px){.recreate-grid{grid-template-columns:1fr;}}
+  .sec-title{font-size:16px;margin:6px 4px 14px;color:var(--sub);font-weight:600;}
+  .sec-title.re{margin-top:24px;}
   .mini-card{background:#fafbfe;border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
   .mini-card h4{font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
   .mini-card p{font-size:12.5px;color:#555c72;line-height:1.8;white-space:pre-wrap;}
@@ -242,7 +246,7 @@
   <!-- ============ 爆款热点视频/二创 ============ -->
   <section class="page" id="page-works">
     <h1 class="pt">🔥 爆款热点视频/二创</h1>
-    <p class="psub">抖音 / 小红书 · 装修博主 &amp; 硬装博主赛道 · 近24小时爆款（按热度排序）· 数据日期：<span id="works-date">—</span></p>
+    <p class="psub">抖音 / 小红书 · 装修&硬装赛道 · 近24h爆款 · 每日 8 条（各平台 2视频+2图文）+ 2 条二创方案 · 数据日期：<span id="works-date">—</span></p>
     <div id="works-list"></div>
   </section>
 
@@ -455,27 +459,66 @@ function copyTitleSearch(i){
     .catch(()=>toast('复制失败，请长按标题手动复制'));
 }
 function renderWorks(data){
-  data=data||{date:'',items:[]};
+  data=data||{date:'',items:[],recreate:[]};
   window._worksData=data.items||[];
   document.getElementById('works-date').textContent=data.date||'暂无';
   const box=document.getElementById('works-list');
-  if(!data.items||!data.items.length){box.innerHTML='<div class="card empty">暂无数据，明早 5:00 将自动抓取更新</div>';return;}
-  box.innerHTML=data.items.map((w,i)=>
+  if(!data.items||!data.items.length){
+    box.innerHTML='<div class="card empty">暂无数据，明早 5:00 将自动抓取更新</div>';
+    return;
+  }
+  // —— 热门爆款作品（8条）——
+  let html='<div class="sec-title">📌 今日热门爆款（'+data.items.length+' 条 · 点击「▶ 原作品」跳转对应作品）</div>';
+  html+=data.items.map((w,i)=>{
+    const jump = isRealWorkUrl(w.url)
+      ? '<button class="btn ghost sm" onclick="window.open(\''+w.url+'\')">▶ 原作品 ↗</button>'
+      : '<button class="btn ghost sm" onclick="copyTitleSearch('+i+')">📋 复制标题去搜</button>';
+    return ''+
     '<div class="card work-item">'+
       '<div class="work-head">'+
         '<span class="tag '+(w.platform==='抖音'?'dy':'xhs')+'">'+w.platform+'</span>'+
         '<span class="tag '+(w.type==='视频'?'video':'pic')+'">'+w.type+'</span>'+
         '<span class="title">'+w.title+'</span>'+
         '<span class="heat">🔥 '+w.heat+'</span>'+
-        (isRealWorkUrl(w.url)
-          ?'<button class="btn ghost sm" onclick="window.open(\''+w.url+'\')">▶ 查看原作品</button>'
-          :'<button class="btn ghost sm" onclick="copyTitleSearch('+i+')">📋 复制标题，去'+w.platform+'搜原作品</button>')+
+        jump+
       '</div>'+
       '<div class="dual">'+
         '<div class="mini-card"><h4>🔍 爆火核心原因</h4><p>'+w.reason+'</p></div>'+
-        '<div class="mini-card"><h4>💡 可借鉴创作启发</h4><p><b>【怎么二创】</b>\n'+w.tips_recreate+'\n\n<b>【怎么发原创】</b>\n'+w.tips_original+'</p></div>'+
+        '<div class="mini-card"><h4>💡 可借鉴点</h4><p>'+w.tip+'</p></div>'+
       '</div>'+
-    '</div>').join('');
+    '</div>';
+  }).join('');
+  // —— 二创建议（视频1 + 图文1）——
+  if(data.recreate&&data.recreate.length){
+    html+='<div class="sec-title re">🛠️ 二创建议（视频 1 条 + 图文 1 条，可直接照做）</div>';
+    html+=data.recreate.map((r,i)=>{
+      const kind=(r.kind==='视频')?'video':'pic';
+      return ''+
+      '<div class="card work-item">'+
+        '<div class="work-head">'+
+          '<span class="tag '+kind+'">'+r.kind+'</span>'+
+          '<span class="title">'+r.title+'</span>'+
+          '<button class="btn ghost sm" onclick="copyRecreate('+i+')">📋 复制整套方案</button>'+
+        '</div>'+
+        '<div class="recreate-grid">'+
+          '<div class="mini-card"><h4>📝 文案</h4><p>'+r.copy+'</p></div>'+
+          '<div class="mini-card"><h4>🧱 内容框架</h4><p>'+r.framework+'</p></div>'+
+          '<div class="mini-card"><h4>🎬 拍摄/制作脚本</h4><p>'+r.script+'</p></div>'+
+          '<div class="mini-card"><h4>🔧 二创修改方法</h4><p>'+r.method+'</p></div>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+  box.innerHTML=html;
+  window._recreateData=data.recreate||[];
+}
+function copyRecreate(i){
+  const r=window._recreateData[i];
+  if(!r)return;
+  const text='【'+r.kind+'二创方案】'+r.title+'\n\n📝 文案：\n'+r.copy+'\n\n🧱 内容框架：\n'+r.framework+'\n\n🎬 拍摄/制作脚本：\n'+r.script+'\n\n🔧 二创修改方法：\n'+r.method;
+  navigator.clipboard.writeText(text)
+    .then(()=>toast('整套二创方案已复制 ✅'))
+    .catch(()=>toast('复制失败，请手动选择复制'));
 }
 renderWorks(window.HOT_WORKS);
 
