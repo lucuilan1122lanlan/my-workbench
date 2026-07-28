@@ -57,6 +57,11 @@
   .btn:hover{filter:brightness(1.08);}
   .btn.ghost{background:var(--accent-soft);color:var(--accent);}
   .btn.sm{padding:6px 12px;font-size:12px;}
+  .btn.pill{background:#1aad19;color:#fff;border:none;border-radius:999px;padding:7px 15px;font-size:12px;font-weight:600;box-shadow:0 2px 8px rgba(26,173,25,.22);}
+  .btn.pill:hover{background:#159414;}
+  .btn.link{color:var(--accent);background:transparent;border:none;box-shadow:none;font-size:12px;padding:6px 10px;}
+  .btn.link:hover{background:#f0f3ff;}
+  .sub-hint{display:block;width:100%;font-size:11px;color:#8f94a6;margin:-4px 0 10px;}
   .btn.link{background:transparent;color:var(--sub);text-decoration:underline;padding:6px 8px;font-size:12px;}
   input[type=text],input[type=number]{border:1px solid var(--line);border-radius:9px;
     padding:9px 12px;font-size:13px;outline:none;background:#fff;transition:.15s;}
@@ -484,14 +489,16 @@ function renderWorks(data){
     return;
   }
   // —— 热门爆款作品（8条）——
-  let html='<div class="sec-title">📌 今日热门爆款（'+data.items.length+' 条 · 有真实链接的点「▶ 原作品」直达；暂无链接的点「🔍 搜原作品」一键跳平台搜该标题）</div>';
+  let html='<div class="sec-title">📌 今日热门爆款（'+data.items.length+' 条 · 已拿到真实链接的「点开即看」）</div>';
   html+=data.items.map((w,i)=>{
     const u = w.url || (workLinks[w.title]||'');
     const has = isRealWorkUrl(u);
-    const jump = has
-      ? '<button class="btn ghost sm" onclick="window.open(\''+u+'\')">▶ 原作品 ↗</button>'
-      : '<button class="btn ghost sm" onclick="openWorkSearch('+i+')">🔍 搜原作品</button>';
-    const paste = has ? '' : '<button class="btn link sm" onclick="pasteWorkLink('+i+')">＋贴链接</button>';
+    const label = has
+      ? (w.platform==='抖音'?'▶ 去抖音看真实视频（点开即看）':'▶ 去小红书看真实笔记（点开即看）')
+      : (w.platform==='抖音'?'🔍 去抖音搜这条作品':'🔍 去小红书搜这条笔记');
+    const jump = '<button class="btn pill sm" onclick="'+(has?'window.open(\''+u+'\')':'openWorkSearch('+i+')')+'">'+label+'</button>';
+    const paste = has ? '' : '<button class="btn link sm" onclick="pasteWorkLink('+i+')">＋我贴真实链接</button>';
+    const sub = has ? '' : '<span class="sub-hint">若暂无精确链接，点击将打开'+w.platform+'搜索结果页，第一条基本就是该作品</span>';
     return ''+
     '<div class="card work-item">'+
       '<div class="work-head">'+
@@ -501,6 +508,7 @@ function renderWorks(data){
         '<span class="heat">🔥 '+w.heat+'</span>'+
         jump+paste+
       '</div>'+
+      sub+
       '<div class="dual">'+
         '<div class="mini-card"><h4>🔍 爆火核心原因</h4><p>'+w.reason+'</p></div>'+
         '<div class="mini-card"><h4>💡 可借鉴点</h4><p>'+w.tip+'</p></div>'+
